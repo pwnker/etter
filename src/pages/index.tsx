@@ -3,6 +3,7 @@ import { SignInButton, useUser } from "@clerk/nextjs";
 import Head from "next/head";
 import Image from "next/image";
 import { api } from "~/utils/api";
+import LoadingSpinner from "~/components/LoadingSpinner";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
@@ -61,14 +62,36 @@ const PostView = (props: PostWithUser) => {
   );
 };
 
+const Feed = () => {
+  const { data, isLoading: postsLoading } = api.posts.getAll.useQuery();
+
+  if (postsLoading) {
+    return (
+      <div className="absolute inset-0 m-auto h-fit w-fit">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return <div>Something went wrong</div>;
+  }
+
+  return (
+    <div>
+      {data.map((fullPost) => (
+        <PostView key={fullPost.post.id} {...fullPost} />
+      ))}
+    </div>
+  );
+};
+
 export default function Home() {
-  const user = useUser();
+  const { isLoaded: userLoaded, isSignedIn } = useUser();
 
-  const { data, isLoading } = api.posts.getAll.useQuery();
+  api.posts.getAll.useQuery();
 
-  if (isLoading) return <div>Loading...</div>;
-
-  if (!data) return <div>404 | Data Not Found</div>;
+  if (!userLoaded) return <div />;
 
   return (
     <>
@@ -80,18 +103,14 @@ export default function Home() {
       <main className="flex h-screen justify-center">
         <div className="h-full w-full py-8 md:max-w-2xl">
           <div className="flex rounded-lg border-2 border-slate-400 p-4">
-            {!user.isSignedIn && (
+            {!isSignedIn && (
               <div className="flex justify-center">
                 <SignInButton />
               </div>
             )}
-            {user.isSignedIn && <CreatePostWizard />}
+            {isSignedIn && <CreatePostWizard />}
           </div>
-          <div>
-            {data.map((fullPost) => (
-              <PostView key={fullPost.post.id} {...fullPost} />
-            ))}
-          </div>
+          <Feed />
         </div>
       </main>
     </>
