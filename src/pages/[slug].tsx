@@ -1,3 +1,14 @@
+import type { ClientUser } from "~/server/api/helpers/filterUserForClient";
+import {
+  type NextPage,
+  type GetStaticProps,
+  type InferGetServerSidePropsType,
+} from "next";
+import Image from "next/image";
+import { PageLayout } from "~/components/layout";
+import PostView from "~/components/PostView";
+import { LoadingSpinner } from "~/components/LoadingSpinner";
+import { createSSGHelper } from "~/server/api/helpers/ssg";
 import Head from "next/head";
 import { api } from "~/utils/api";
 
@@ -61,27 +72,8 @@ const ProfilePage: NextPage<PageProps> = ({ username }) => {
   );
 };
 
-import { createServerSideHelpers } from "@trpc/react-query/server";
-import { appRouter } from "~/server/api/root";
-import { prisma } from "~/server/db";
-import SuperJSON from "superjson";
-import {
-  type NextPage,
-  type GetStaticProps,
-  type InferGetServerSidePropsType,
-} from "next";
-import Image from "next/image";
-import { PageLayout } from "~/components/layout";
-import PostView from "~/components/PostView";
-import { LoadingSpinner } from "~/components/LoadingSpinner";
-import { type ClientUser } from "~/server/api/helpers/filterUserForClient";
-
 export const getStaticProps: GetStaticProps = async (context) => {
-  const ssg = createServerSideHelpers({
-    router: appRouter,
-    ctx: { prisma, userId: null },
-    transformer: SuperJSON,
-  });
+  const ssg = createSSGHelper();
 
   const slug = context.params?.slug;
 
