@@ -18,14 +18,11 @@ jobs:
         with:
           node-version: 14
 
-      - name: Install pnpm
-        run: npm install -g pnpm
-
       - name: Install dependencies
-        run: pnpm install
+        run: npm install
 
       - name: Typecheck with TypeScript
-        run: pnpm run type-check
+        run: npm run type-check
 
       - name: Lint with ESLint
-        run: pnpm run lint
+        run: npm run lint
