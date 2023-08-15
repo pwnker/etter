@@ -1,10 +1,11 @@
-import { clerkClient } from "@clerk/nextjs";
 import { createTRPCRouter, privateProcedure, publicProcedure } from "../trpc";
-import { TRPCError } from "@trpc/server";
-import { z } from "zod";
+import filerUserForClient from "../helpers/filterUserForClient";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis/nodejs";
-import filerUserForClient from "../helpers/filterUserForClient";
+import { clerkClient } from "@clerk/nextjs";
+import type { Post } from "@prisma/client";
+import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 
 const ratelimit = new Ratelimit({
   redis: Redis.fromEnv(),
@@ -12,41 +13,58 @@ const ratelimit = new Ratelimit({
   analytics: true,
 });
 
+const addUserDataToPosts = async (posts: Post[]) => {
+  const users = (
+    await clerkClient.users.getUserList({
+      userId: posts.map((post) => post.authorId),
+      limit: 100,
+    })
+  ).map(filerUserForClient);
+
+  return posts.map((post) => {
+    const author = users.find((user) => user.id === post.authorId);
+    if (!author) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: `Author for post '${post.id}' is undefined`,
+      });
+    }
+
+    if (!author.username) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: `Author.username for post '${post.id}' is undefined`,
+      });
+    }
+
+    return {
+      post,
+      author,
+    };
+  });
+};
+
 export const postsRouter = createTRPCRouter({
   getAll: publicProcedure.query(async ({ ctx }) => {
     const posts = await ctx.prisma.post.findMany({
       take: 100,
     });
-
-    const users = (
-      await clerkClient.users.getUserList({
-        userId: posts.map((post) => post.authorId),
-        limit: 100,
-      })
-    ).map(filerUserForClient);
-
-    return posts.map((post) => {
-      const author = users.find((user) => user.id === post.authorId);
-      if (!author) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: `Author for post '${post.id}' is undefined`,
-        });
-      }
-
-      if (!author.username) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: `Author.username for post '${post.id}' is undefined`,
-        });
-      }
-
-      return {
-        post,
-        author,
-      };
-    });
+    return addUserDataToPosts(posts);
   }),
+  getPostsByUserId: publicProcedure
+    .input(z.object({ userId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const posts = await ctx.prisma.post
+        .findMany({
+          where: {
+            authorId: input.userId,
+          },
+          take: 100,
+        })
+        .then(addUserDataToPosts);
+
+      return posts;
+    }),
   create: privateProcedure
     .input(
       z.object({

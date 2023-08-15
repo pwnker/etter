@@ -1,13 +1,50 @@
 import Head from "next/head";
 import { api } from "~/utils/api";
 
+const ProfileHead = (props: { user: ClientUser }) => {
+  const { user } = props;
+  return (
+    <div>
+      <div className="relative flex h-60 flex-col items-center bg-slate-600 p-8 text-center">
+        <Image
+          className="absolute bottom-0 -mb-[98px] rounded-full border-8 border-black opacity-100"
+          src={user.profilePicture}
+          width={196}
+          height={196}
+          alt="profile-picture"
+        />
+      </div>
+      <div className="h-[98px]" />
+      <div className="p-2 text-center">@{user.username}</div>
+    </div>
+  );
+};
+
+const ProfileFeed = (props: { user: ClientUser }) => {
+  const { data, isLoading } = api.posts.getPostsByUserId.useQuery({
+    userId: props.user.id,
+  });
+
+  if (isLoading) return <LoadingSpinner />;
+
+  if (!data || data.length === 0) return <div>User has no posts</div>;
+
+  return (
+    <div>
+      {data.map((fullPost) => (
+        <PostView {...fullPost} key={fullPost.post.id} />
+      ))}
+    </div>
+  );
+};
+
 type PageProps = InferGetServerSidePropsType<typeof getStaticProps>;
 const ProfilePage: NextPage<PageProps> = ({ username }) => {
-  const { data } = api.profile.getUserByUsername.useQuery({
+  const { data: user } = api.profile.getUserByUsername.useQuery({
     username: username,
   });
 
-  if (!data) {
+  if (!user) {
     return <div>404</div>;
   }
 
@@ -17,17 +54,8 @@ const ProfilePage: NextPage<PageProps> = ({ username }) => {
         <title>Profile</title>
       </Head>
       <PageLayout>
-        <div className="relative flex h-60 flex-col items-center bg-slate-600 p-8 text-center">
-          <Image
-            className="absolute bottom-0 -mb-[98px] rounded-full border-8 border-black opacity-100"
-            src={data.profilePicture}
-            width={196}
-            height={196}
-            alt="profile-picture"
-          />
-        </div>
-        <div className="h-[98px]" />
-        <div className="p-2 text-center">@{data.username}</div>
+        <ProfileHead user={user} />
+        <ProfileFeed user={user} />
       </PageLayout>
     </>
   );
@@ -44,6 +72,9 @@ import {
 } from "next";
 import Image from "next/image";
 import { PageLayout } from "~/components/layout";
+import PostView from "~/components/PostView";
+import { LoadingSpinner } from "~/components/LoadingSpinner";
+import { type ClientUser } from "~/server/api/helpers/filterUserForClient";
 
 export const getStaticProps: GetStaticProps = async (context) => {
   const ssg = createServerSideHelpers({
