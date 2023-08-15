@@ -21,3 +21,6 @@ jobs:
 
       - name: Lint with ESLint
         run: npm run lint
+
+      - name: Print Enviroment Variable
+        run: echo $MY_ENV_VAR
