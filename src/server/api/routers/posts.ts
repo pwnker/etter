@@ -49,6 +49,7 @@ export const postsRouter = createTRPCRouter({
     const posts = await ctx.prisma.post.findMany({
       take: 100,
     });
+
     return addUserDataToPosts(posts);
   }),
   getPostsByUserId: publicProcedure
