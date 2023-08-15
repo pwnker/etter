@@ -3,10 +3,12 @@ import { SignInButton, useUser } from "@clerk/nextjs";
 import Head from "next/head";
 import Image from "next/image";
 import { api } from "~/utils/api";
-import LoadingSpinner from "~/components/LoadingSpinner";
+import { LoadingSpinner } from "~/components/LoadingSpinner";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useState } from "react";
+import { toast } from "react-hot-toast";
+import Link from "next/link";
 
 dayjs.extend(relativeTime);
 
@@ -20,6 +22,14 @@ const CreatePostWizard = () => {
     onSuccess: () => {
       setInput("");
       void ctx.posts.getAll.invalidate();
+    },
+    onError: (e) => {
+      const errorMessage = e.data?.zodError?.fieldErrors.content;
+      if (errorMessage?.[0]) {
+        toast.error(errorMessage[0]);
+      } else {
+        toast.error("Failed to post! Try again later.");
+      }
     },
   });
 
@@ -44,7 +54,16 @@ const CreatePostWizard = () => {
         onChange={(e) => setInput(e.target.value)}
         disabled={isPosting}
       />
-      <button onClick={() => mutate({ content: input })}>Post</button>
+      {!isPosting && input !== "" && (
+        <button disabled={isPosting} onClick={() => mutate({ content: input })}>
+          Post
+        </button>
+      )}
+      {isPosting && (
+        <div className="flex flex-col justify-center">
+          <LoadingSpinner size={20} />
+        </div>
+      )}
     </div>
   );
 };
@@ -67,10 +86,14 @@ const PostView = (props: PostWithUser) => {
           className="flex h-14 w-14 rounded-full"
         />
         <span className="flex flex-col">
-          <span>@{author.username}</span>
-          <span className="font-thin opacity-80">
-            {dayjs(post.createdAt).fromNow()}
-          </span>
+          <Link href={`/@${author.username}`}>
+            <span>@{author.username}</span>
+          </Link>
+          <Link href={`/post/${post.id}`}>
+            <span className="font-thin opacity-80">
+              {dayjs(post.createdAt).fromNow()}
+            </span>
+          </Link>
         </span>
       </pre>
       <span className="text-2xl">{post.content}</span>
@@ -94,7 +117,7 @@ const Feed = () => {
   }
 
   return (
-    <div>
+    <div className="flex flex-col-reverse">
       {data.map((fullPost) => (
         <PostView key={fullPost.post.id} {...fullPost} />
       ))}
