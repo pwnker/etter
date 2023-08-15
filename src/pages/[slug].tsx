@@ -62,7 +62,7 @@ const ProfilePage: NextPage<PageProps> = ({ username }) => {
   return (
     <>
       <Head>
-        <title>Profile</title>
+        <title>{`@${user.username}`}</title>
       </Head>
       <PageLayout>
         <ProfileHead user={user} />
